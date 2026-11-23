@@ -1,19 +1,19 @@
-# Claude Web Bridge
+# page-snap
 
-在網頁上點選元素或拖拉框選一塊範圍，把截圖複製到剪貼簿，再貼到 VS Code 或終端機裡的 Claude Code。
+A Chrome extension that copies a screenshot of a page element or a dragged region to the clipboard, ready to paste into Claude Code in VS Code or a terminal.
 
-## 安裝擴充功能
+## Install
 
-1. Chrome 網址列輸入 `chrome://extensions`
-2. 打開右上角「開發人員模式」
-3. 按「載入未封裝項目」，選這個資料夾裡的 `extension`
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the `extension` folder in this repo.
 
-## 使用
+## Usage
 
-- 點瀏覽器上的擴充功能圖示，網頁頂端會出現一條小工具列，可以切換「選元素」和「框範圍」，再點一次圖示或按 ✕ 關掉
-- 「選元素」（`Alt+Shift+E`）：滑鼠移到元素上會出現框線，點下去就把該元素的截圖複製到剪貼簿
-- 「框範圍」（`Alt+Shift+R`）：先凍結目前畫面，再拖拉框出一塊區域，把那塊的截圖複製到剪貼簿
-- 複製好之後，到 VS Code 的 Claude 輸入框按 `Cmd+V` 貼上
-- 要選下拉選單、彈出框這種一點外面就會收起來的東西，請先打開它，再用快捷鍵開始選取
-- 按 Esc 取消選取
-- 快捷鍵跟別的衝突的話，可以到 `chrome://extensions/shortcuts` 改
+- Click the extension icon to show a small toolbar at the top of the page. Switch between **element** and **region** mode. Click the icon again or press ✕ to close it.
+- **Pick element** (`Alt+Shift+E`): hover to highlight an element, click to copy its screenshot.
+- **Drag region** (`Alt+Shift+R`): the current view freezes, then drag a box to copy a screenshot of that area.
+- Paste into the Claude input in VS Code with `Cmd+V`.
+- For dropdowns, popups and anything that closes when you click outside, open it first, then start selecting with the shortcut.
+- Press `Esc` to cancel.
+- If a shortcut conflicts with another extension, change it at `chrome://extensions/shortcuts`.

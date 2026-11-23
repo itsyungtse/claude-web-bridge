@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Claude Web Bridge",
+  "name": "page-snap",
   "version": "0.2.0",
   "description": "Pick an element or drag a region and copy its screenshot to paste into Claude Code.",
   "permissions": ["activeTab", "scripting", "clipboardWrite"],
   "background": { "service_worker": "background.js" },
-  "action": { "default_title": "Claude Web Bridge" },
+  "action": { "default_title": "page-snap" },
   "commands": {
     "start-picker": {
       "suggested_key": { "default": "Alt+Shift+E", "mac": "Alt+Shift+E" },
