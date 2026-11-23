@@ -14,6 +14,14 @@ node server.mjs
 PERMISSION_MODE=bypassPermissions node server.mjs
 ```
 
+### 開機自動啟動（macOS）
+
+```sh
+./autostart.sh
+```
+
+之後登入電腦就會自動啟動伺服器，當掉也會自動重開，紀錄寫在 `~/Library/Logs/claude-web-bridge.log`。搬動資料夾或想改權限模式時，重跑一次就好（例如 `PERMISSION_MODE=bypassPermissions ./autostart.sh`）。不要了就執行 `./autostart.sh uninstall`。
+
 ## 安裝擴充功能
 
 1. Chrome 網址列輸入 `chrome://extensions`
