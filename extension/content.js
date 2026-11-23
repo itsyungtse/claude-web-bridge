@@ -21,8 +21,10 @@ if (!window.__claudeWebBridge) {
     .message.error { background: #fdecec; color: #a00; }
     .toolbar { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid #eee; align-items: center; }
     .attachment { display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; color: #555; }
-    .attachment img { height: 32px; border: 1px solid #ddd; border-radius: 4px; }
-    .attachment span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attachment img { height: 32px; max-width: 64px; object-fit: cover; flex-shrink: 0; border: 1px solid #ddd; border-radius: 4px; }
+    .attachment span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+    .attachment button { flex-shrink: 0; white-space: nowrap; }
+    .toolbar > button { flex-shrink: 0; }
     .composer { display: flex; gap: 6px; padding: 8px; }
     textarea { flex: 1; resize: none; height: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
     .highlight { position: fixed; pointer-events: none; z-index: 2147483646; border: 2px solid #d97757;
