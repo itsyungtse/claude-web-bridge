@@ -10,6 +10,14 @@
   "commands": {
     "_execute_action": {
       "suggested_key": { "default": "Alt+Shift+C", "mac": "Alt+Shift+C" }
+    },
+    "start-picker": {
+      "suggested_key": { "default": "Alt+Shift+E", "mac": "Alt+Shift+E" },
+      "description": "Pick an element without closing open popups"
+    },
+    "start-region": {
+      "suggested_key": { "default": "Alt+Shift+R", "mac": "Alt+Shift+R" },
+      "description": "Drag a region without closing open popups"
     }
   }
 }

@@ -27,9 +27,9 @@ if (!window.__claudeWebBridge) {
     .toolbar > button { flex-shrink: 0; }
     .composer { display: flex; gap: 6px; padding: 8px; }
     textarea { flex: 1; resize: none; height: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
-    .highlight { position: fixed; pointer-events: none; z-index: 2147483646; border: 2px solid #d97757;
+    .highlight { position: fixed; pointer-events: none; z-index: 2147483647; border: 2px solid #d97757;
       background: rgba(217,119,87,.12); }
-    .region-layer { position: fixed; inset: 0; z-index: 2147483646; cursor: crosshair; background: rgba(0,0,0,.08); }
+    .region-layer { position: fixed; inset: 0; z-index: 2147483647; cursor: crosshair; background-size: 100% 100%; box-shadow: inset 0 0 0 100vmax rgba(0,0,0,.08); }
     .region-box { position: fixed; border: 2px dashed #d97757; background: rgba(217,119,87,.12); pointer-events: none; }
   `;
 
@@ -150,7 +150,7 @@ if (!window.__claudeWebBridge) {
     ].join('\n');
   }
 
-  async function screenshotOf(rect) {
+  async function captureViewport() {
     const panelWasVisible = !panel.hidden;
     panel.hidden = true;
     highlight.hidden = true;
@@ -161,8 +161,12 @@ if (!window.__claudeWebBridge) {
       appendMessage('error', `截圖失敗：${error}`);
       return null;
     }
+    return dataUrl;
+  }
+
+  async function cropScreenshot(screenshotUrl, rect) {
     const image = new Image();
-    image.src = dataUrl;
+    image.src = screenshotUrl;
     await image.decode();
     const scale = image.width / innerWidth;
     const canvas = document.createElement('canvas');
@@ -170,6 +174,11 @@ if (!window.__claudeWebBridge) {
     canvas.height = Math.max(1, rect.height * scale);
     canvas.getContext('2d').drawImage(image, rect.left * scale, rect.top * scale, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/png');
+  }
+
+  async function screenshotOf(rect) {
+    const screenshotUrl = await captureViewport();
+    return screenshotUrl && cropScreenshot(screenshotUrl, rect);
   }
 
   function setAttachment(label, context, screenshot) {
@@ -186,74 +195,101 @@ if (!window.__claudeWebBridge) {
     textarea.focus();
   }
 
+  const POINTER_BUTTON_EVENTS = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'auxclick', 'contextmenu'];
+
+  // Swallow button events at window capture so the page never sees the selecting click:
+  // otherwise teleported dropdowns and popovers close on "click outside" before they can be picked.
+  function interceptPage({ onMove, onPointerDown, onPointerUp, onCancel }) {
+    const handleButton = (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.type === 'pointerdown') onPointerDown?.(event);
+      if (event.type === 'pointerup') finish(() => onPointerUp(event));
+    };
+    const handleKey = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      finish(onCancel);
+    };
+    function finish(callback) {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('keydown', handleKey, true);
+      // The click that follows pointerup is dispatched in the same task and must be swallowed too.
+      setTimeout(() => POINTER_BUTTON_EVENTS.forEach((type) => window.removeEventListener(type, handleButton, true)));
+      callback();
+    }
+    POINTER_BUTTON_EVENTS.forEach((type) => window.addEventListener(type, handleButton, true));
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('keydown', handleKey, true);
+  }
+
   function startElementPicker() {
     panel.hidden = true;
     let hovered = null;
-    const onMove = (event) => {
-      if (event.target === host) return;
-      hovered = event.target;
-      const rect = hovered.getBoundingClientRect();
-      Object.assign(highlight.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-      highlight.hidden = false;
-    };
-    const stop = () => {
-      document.removeEventListener('mousemove', onMove, true);
-      document.removeEventListener('click', onClick, true);
-      document.removeEventListener('keydown', onKey, true);
+    const endPicking = () => {
       highlight.hidden = true;
-      panel.hidden = false;
+      showPanel();
     };
-    const onClick = async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      stop();
-      if (!hovered) return;
-      const rect = hovered.getBoundingClientRect();
-      const screenshot = await screenshotOf(rect);
-      setAttachment(`元素：${cssSelectorFor(hovered)}`, describeElement(hovered), screenshot);
-    };
-    const onKey = (event) => event.key === 'Escape' && stop();
-    document.addEventListener('mousemove', onMove, true);
-    document.addEventListener('click', onClick, true);
-    document.addEventListener('keydown', onKey, true);
+    interceptPage({
+      onMove: (event) => {
+        if (event.target === host) return;
+        hovered = event.target;
+        const rect = hovered.getBoundingClientRect();
+        Object.assign(highlight.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+        highlight.hidden = false;
+      },
+      onCancel: endPicking,
+      onPointerUp: async () => {
+        endPicking();
+        if (!hovered) return;
+        const screenshot = await screenshotOf(hovered.getBoundingClientRect());
+        setAttachment(`元素：${cssSelectorFor(hovered)}`, describeElement(hovered), screenshot);
+      },
+    });
   }
 
-  function startRegionSelect() {
+  // Freeze the page into a screenshot first, so popups that close once the page sees a mouse event
+  // (window-capture listeners registered before ours still fire) stay in the selected image.
+  async function startRegionSelect() {
     panel.hidden = true;
+    const frozenScreenshot = await captureViewport();
+    if (!frozenScreenshot) return showPanel();
     const layer = Object.assign(document.createElement('div'), { className: 'region-layer' });
+    layer.style.backgroundImage = `url(${frozenScreenshot})`;
     const box = Object.assign(document.createElement('div'), { className: 'region-box' });
     root.append(layer);
     let start = null;
     let rect = null;
-    const finish = () => {
+    const endSelecting = () => {
       layer.remove();
       box.remove();
-      document.removeEventListener('keydown', onKey, true);
-      panel.hidden = false;
+      showPanel();
     };
-    const onKey = (event) => event.key === 'Escape' && finish();
-    document.addEventListener('keydown', onKey, true);
-    layer.onmousedown = (event) => {
-      start = { x: event.clientX, y: event.clientY };
-      root.append(box);
-    };
-    layer.onmousemove = (event) => {
-      if (!start) return;
-      rect = {
-        left: Math.min(start.x, event.clientX),
-        top: Math.min(start.y, event.clientY),
-        width: Math.abs(event.clientX - start.x),
-        height: Math.abs(event.clientY - start.y),
-      };
-      Object.assign(box.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-    };
-    layer.onmouseup = async () => {
-      finish();
-      if (!rect || rect.width < 4 || rect.height < 4) return;
-      const screenshot = await screenshotOf(rect);
-      const context = `page: ${location.href}\nselected region (viewport px): x=${rect.left}, y=${rect.top}, ${rect.width}×${rect.height}`;
-      setAttachment(`範圍 ${rect.width}×${rect.height}`, context, screenshot);
-    };
+    interceptPage({
+      onPointerDown: (event) => {
+        start = { x: event.clientX, y: event.clientY };
+        root.append(box);
+      },
+      onMove: (event) => {
+        if (!start) return;
+        rect = {
+          left: Math.min(start.x, event.clientX),
+          top: Math.min(start.y, event.clientY),
+          width: Math.abs(event.clientX - start.x),
+          height: Math.abs(event.clientY - start.y),
+        };
+        Object.assign(box.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+      },
+      onCancel: endSelecting,
+      onPointerUp: async () => {
+        endSelecting();
+        if (!rect || rect.width < 4 || rect.height < 4) return;
+        const screenshot = await cropScreenshot(frozenScreenshot, rect);
+        const context = `page: ${location.href}\nselected region (viewport px): x=${rect.left}, y=${rect.top}, ${rect.width}×${rect.height}`;
+        setAttachment(`範圍 ${rect.width}×${rect.height}`, context, screenshot);
+      },
+    });
   }
 
   function setStreaming(streaming) {
@@ -315,10 +351,31 @@ if (!window.__claudeWebBridge) {
   $('.pick').onclick = startElementPicker;
   $('.region').onclick = startRegionSelect;
 
+  function showPanel() {
+    panel.hidden = false;
+    if (!sessionSelect.options.length) loadSessions();
+  }
+
+  function refreshFromOtherClients() {
+    if (panel.hidden || chatPort) return;
+    loadSessions();
+  }
+  window.addEventListener('focus', refreshFromOtherClients);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refreshFromOtherClients());
+
+  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'keydown', 'keyup', 'keypress'].forEach((type) =>
+    host.addEventListener(type, (event) => event.stopPropagation()),
+  );
+
   chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'start-picker') startElementPicker();
+    if (message.type === 'start-region') startRegionSelect();
     if (message.type !== 'toggle-panel') return;
-    panel.hidden = !panel.hidden;
-    if (!panel.hidden && !sessionSelect.options.length) loadSessions();
-    if (!panel.hidden) textarea.focus();
+    if (panel.hidden) {
+      showPanel();
+      textarea.focus();
+    } else {
+      panel.hidden = true;
+    }
   });
 }

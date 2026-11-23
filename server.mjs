@@ -29,10 +29,20 @@ function textOf(messageContent) {
     .join('\n');
 }
 
+const IDE_INJECTED_CONTEXT = /<(ide_opened_file|ide_selection|browser_instruction|system-reminder)>[\s\S]*?<\/\1>/g;
+const BROWSER_SELECTION = /\s*<browser-selection>[\s\S]*<\/browser-selection>/;
+
+function promptTextOf(messageContent) {
+  return textOf(messageContent)
+    .replace(IDE_INJECTED_CONTEXT, '')
+    .replace(BROWSER_SELECTION, '\n📎 已附上網頁選取')
+    .trim();
+}
+
 function isHumanPrompt(record) {
   if (record.type !== 'user' || record.isSidechain || record.isMeta) return false;
-  const text = textOf(record.message?.content).trim();
-  return text !== '' && !text.startsWith('<');
+  const text = promptTextOf(record.message?.content);
+  return text !== '' && (!text.startsWith('<') || text.startsWith('<pasted_content'));
 }
 
 async function listSessionFiles() {
@@ -62,7 +72,7 @@ async function listSessions() {
       const prompts = records.filter(isHumanPrompt);
       if (prompts.length === 0) return null;
       const cwd = records.find((record) => record.cwd)?.cwd;
-      const lastPrompt = textOf(prompts.at(-1).message.content).trim();
+      const lastPrompt = promptTextOf(prompts.at(-1).message.content);
       return { sessionId, cwd, title: lastPrompt.slice(0, 60), updatedAt };
     }),
   );
@@ -75,7 +85,10 @@ async function sessionHistory(sessionId) {
   const records = readJsonLines(await fs.readFile(file.filePath, 'utf8'));
   return records
     .filter((record) => !record.isSidechain && (isHumanPrompt(record) || record.type === 'assistant'))
-    .map((record) => ({ role: record.type, text: textOf(record.message?.content).trim() }))
+    .map((record) => ({
+      role: record.type,
+      text: record.type === 'user' ? promptTextOf(record.message.content) : textOf(record.message?.content).trim(),
+    }))
     .filter((message) => message.text)
     .slice(-HISTORY_LIMIT);
 }
@@ -152,13 +165,22 @@ async function readBody(request) {
   return JSON.parse(body);
 }
 
+const LOCAL_HOSTS = [`127.0.0.1:${PORT}`, `localhost:${PORT}`];
+
+// Chrome omits Origin on extension GET requests that host_permissions cover, so absence is allowed;
+// any web page reaching us sends its own Origin, and the Host check blocks DNS-rebinding pages.
+function isFromExtension(request) {
+  const origin = request.headers.origin;
+  const fromLocalHost = LOCAL_HOSTS.includes(request.headers.host);
+  return fromLocalHost && (origin === undefined || origin.startsWith('chrome-extension://'));
+}
+
 const server = http.createServer(async (request, response) => {
-  const origin = request.headers.origin ?? '';
-  if (!origin.startsWith('chrome-extension://')) {
+  if (!isFromExtension(request)) {
     response.writeHead(403).end('only the browser extension may call this server');
     return;
   }
-  response.setHeader('Access-Control-Allow-Origin', origin);
+  if (request.headers.origin) response.setHeader('Access-Control-Allow-Origin', request.headers.origin);
   response.setHeader('Access-Control-Allow-Headers', 'content-type');
   if (request.method === 'OPTIONS') return response.writeHead(204).end();
 

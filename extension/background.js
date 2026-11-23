@@ -1,9 +1,12 @@
 const SERVER_URL = 'http://127.0.0.1:4567';
 
-chrome.action.onClicked.addListener(async (tab) => {
+async function sendToPanel(tab, type) {
   await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-  chrome.tabs.sendMessage(tab.id, { type: 'toggle-panel' });
-});
+  chrome.tabs.sendMessage(tab.id, { type });
+}
+
+chrome.action.onClicked.addListener((tab) => sendToPanel(tab, 'toggle-panel'));
+chrome.commands.onCommand.addListener((command, tab) => sendToPanel(tab, command));
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'capture-tab') {
@@ -15,7 +18,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message.type === 'server-get') {
     fetch(SERVER_URL + message.path)
-      .then((response) => response.json())
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+        return response.json();
+      })
       .then((data) => sendResponse({ data }))
       .catch((error) => sendResponse({ error: `連不到本機伺服器：${error}` }));
     return true;
