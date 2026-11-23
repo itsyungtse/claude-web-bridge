@@ -3,162 +3,114 @@ if (!window.__claudeWebBridge) {
 
   const STYLE = `
     :host { all: initial; }
-    * { box-sizing: border-box; font-family: -apple-system, "PingFang TC", sans-serif; font-size: 13px; }
-    .panel { position: fixed; right: 16px; bottom: 16px; width: 400px; height: 560px; z-index: 2147483647;
-      display: flex; flex-direction: column; background: #fff; color: #1f1f1f; border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,.25); overflow: hidden; }
-    .panel[hidden] { display: none; }
-    header { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid #eee; align-items: center; }
-    select { flex: 1; min-width: 0; padding: 4px; }
-    button { padding: 4px 8px; border: 1px solid #ccc; border-radius: 6px; background: #fafafa; cursor: pointer; }
-    button.primary { background: #d97757; color: #fff; border-color: #d97757; }
-    button:disabled { opacity: .5; cursor: default; }
-    .messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-    .message { white-space: pre-wrap; word-break: break-word; padding: 8px 10px; border-radius: 8px; line-height: 1.5; }
-    .message.user { background: #f3ede9; align-self: flex-end; max-width: 85%; }
-    .message.assistant { background: #f7f7f7; }
-    .message.tool { color: #777; font-size: 12px; padding: 2px 10px; font-family: ui-monospace, monospace; }
-    .message.error { background: #fdecec; color: #a00; }
-    .toolbar { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid #eee; align-items: center; }
-    .attachment { display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; color: #555; }
-    .attachment img { height: 32px; max-width: 64px; object-fit: cover; flex-shrink: 0; border: 1px solid #ddd; border-radius: 4px; }
-    .attachment span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
-    .attachment button { flex-shrink: 0; white-space: nowrap; }
-    .toolbar > button { flex-shrink: 0; }
-    .composer { display: flex; gap: 6px; padding: 8px; }
-    textarea { flex: 1; resize: none; height: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
-    .highlight { position: fixed; pointer-events: none; z-index: 2147483647; border: 2px solid #d97757;
-      background: rgba(217,119,87,.12); }
-    .region-layer { position: fixed; inset: 0; z-index: 2147483647; cursor: crosshair; background-size: 100% 100%; box-shadow: inset 0 0 0 100vmax rgba(0,0,0,.08); }
-    .region-box { position: fixed; border: 2px dashed #d97757; background: rgba(217,119,87,.12); pointer-events: none; }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif; font-size: 13px; line-height: 1.4; }
+    [hidden] { display: none !important; }
+    .toolbar { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2147483647;
+      display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
+      background: rgba(24,24,27,.92); color: #fafafa; box-shadow: 0 6px 24px rgba(0,0,0,.25); backdrop-filter: blur(8px); }
+    .toolbar button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 0; border-radius: 999px;
+      background: transparent; color: inherit; cursor: pointer; }
+    .toolbar button:hover { background: rgba(255,255,255,.1); }
+    .toolbar button.active { background: #d97757; }
+    .toolbar button.close { padding: 6px 10px; color: #a1a1aa; }
+    .toolbar kbd { padding: 0 5px; border-radius: 4px; background: rgba(255,255,255,.15); font: 11px ui-monospace, monospace; }
+    .toolbar .cancel-hint { padding: 0 8px; color: #a1a1aa; font-size: 12px; visibility: hidden; }
+    .toolbar.selecting .cancel-hint { visibility: visible; }
+    .divider { width: 1px; height: 18px; background: rgba(255,255,255,.15); }
+    .highlight { position: fixed; pointer-events: none; z-index: 2147483646; border: 2px solid #d97757; border-radius: 4px;
+      background: rgba(217,119,87,.10); transition: all 60ms ease-out; }
+    .size-label { position: absolute; left: -2px; bottom: calc(100% + 4px); white-space: nowrap; padding: 2px 6px; border-radius: 4px;
+      background: #d97757; color: #fff; font: 11px ui-monospace, monospace; }
+    .highlight.near-top .size-label { bottom: auto; top: calc(100% + 4px); }
+    .region-layer { position: fixed; inset: 0; z-index: 2147483646; cursor: crosshair; background-size: 100% 100%; }
+    .region-layer::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+    .region-layer.dragging::after { display: none; }
+    .region-box { position: fixed; z-index: 2147483646; pointer-events: none; border: 2px solid #d97757; border-radius: 2px;
+      box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+    .toast { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; display: flex; align-items: center; gap: 12px;
+      max-width: 360px; padding: 10px 14px 10px 10px; border-radius: 12px; background: rgba(24,24,27,.95); color: #fafafa;
+      box-shadow: 0 10px 32px rgba(0,0,0,.3); animation: toast-in 180ms cubic-bezier(.2,.8,.2,1); }
+    .toast img { width: 56px; height: 40px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: #fff; }
+    .toast .title { font-weight: 600; }
+    .toast .detail { color: #a1a1aa; font-size: 12px; }
+    .toast.error { background: #7f1d1d; }
+    .toast.error .detail { color: #fecaca; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
   `;
 
   const host = document.createElement('div');
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `
     <style>${STYLE}</style>
-    <div class="panel" hidden>
-      <header>
-        <select class="sessions"></select>
-        <button class="refresh" title="重新整理對話清單">↻</button>
-        <button class="close">✕</button>
-      </header>
-      <div class="messages"></div>
-      <div class="toolbar">
-        <button class="pick">選元素</button>
-        <button class="region">框範圍</button>
-        <div class="attachment"></div>
-      </div>
-      <div class="composer">
-        <textarea placeholder="Enter 送出，Shift+Enter 換行"></textarea>
-        <button class="send primary">送出</button>
-      </div>
+    <div class="toolbar" hidden>
+      <button class="picker">選元素 <kbd>⌥⇧E</kbd></button>
+      <button class="region">框範圍 <kbd>⌥⇧R</kbd></button>
+      <span class="cancel-hint">Esc 取消</span>
+      <span class="divider"></span>
+      <button class="close" title="關閉工具列">✕</button>
     </div>
-    <div class="highlight" hidden></div>
+    <div class="highlight" hidden><span class="size-label"></span></div>
+    <div class="toast" hidden></div>
   `;
   document.documentElement.append(host);
 
-  const $ = (selector) => root.querySelector(selector);
-  const panel = $('.panel');
-  const sessionSelect = $('.sessions');
-  const messageList = $('.messages');
-  const attachmentView = $('.attachment');
-  const textarea = $('textarea');
-  const sendButton = $('.send');
-  const highlight = $('.highlight');
-
-  let currentTarget = null;
-  let attachment = null;
-  let chatPort = null;
+  const toolbar = root.querySelector('.toolbar');
+  const pickerButton = root.querySelector('.picker');
+  const regionButton = root.querySelector('.region');
+  const toast = root.querySelector('.toast');
+  const highlight = root.querySelector('.highlight');
+  const highlightLabel = root.querySelector('.size-label');
+  let toastTimer = null;
+  let toolbarPinned = false;
+  let cancelActiveMode = null;
 
   const askBackground = (message) => chrome.runtime.sendMessage(message);
 
-  function appendMessage(role, text) {
-    const element = document.createElement('div');
-    element.className = `message ${role}`;
-    element.textContent = text;
-    messageList.append(element);
-    messageList.scrollTop = messageList.scrollHeight;
-    return element;
+  function enterMode(activeButton) {
+    cancelActiveMode?.();
+    pickerButton.classList.toggle('active', activeButton === pickerButton);
+    regionButton.classList.toggle('active', activeButton === regionButton);
+    toolbar.classList.add('selecting');
+    toolbar.hidden = false;
   }
 
-  function projectName(cwd) {
-    return cwd?.split('/').filter(Boolean).at(-1) ?? '~';
+  function leaveMode() {
+    cancelActiveMode = null;
+    pickerButton.classList.remove('active');
+    regionButton.classList.remove('active');
+    toolbar.classList.remove('selecting');
+    toolbar.hidden = !toolbarPinned;
   }
 
-  async function loadSessions() {
-    const { data: sessions, error } = await askBackground({ type: 'server-get', path: '/sessions' });
-    if (error) return appendMessage('error', error);
-    const stored = await chrome.storage.local.get('target');
-    const remembered = stored.target ? JSON.stringify(stored.target) : null;
-
-    const projectFolders = [...new Set(sessions.map((session) => session.cwd).filter(Boolean))];
-    const sessionOptions = sessions.map((session) => {
-      const value = JSON.stringify({ sessionId: session.sessionId, cwd: session.cwd });
-      const time = new Date(session.updatedAt).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      return `<option value="${escapeHtml(value)}">[${projectName(session.cwd)}] ${escapeHtml(session.title)} · ${time}</option>`;
-    });
-    const newOptions = projectFolders.map((cwd) => `<option value="${escapeHtml(JSON.stringify({ sessionId: null, cwd }))}">＋ 在 ${projectName(cwd)} 開新對話</option>`);
-    sessionSelect.innerHTML = `<optgroup label="接續對話">${sessionOptions.join('')}</optgroup><optgroup label="新對話">${newOptions.join('')}</optgroup>`;
-
-    if (remembered && [...sessionSelect.options].some((option) => option.value === remembered)) {
-      sessionSelect.value = remembered;
-    }
-    await selectTarget(JSON.parse(sessionSelect.value));
+  function showToast({ title, detail, image, isError = false }) {
+    toast.innerHTML = '';
+    if (image) toast.append(Object.assign(document.createElement('img'), { src: image }));
+    const text = document.createElement('div');
+    text.append(Object.assign(document.createElement('div'), { className: 'title', textContent: title }));
+    text.append(Object.assign(document.createElement('div'), { className: 'detail', textContent: detail }));
+    toast.append(text);
+    toast.classList.toggle('error', isError);
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast.hidden = true), isError ? 5000 : 3000);
   }
 
-  async function selectTarget(target) {
-    currentTarget = target;
-    await chrome.storage.local.set({ target });
-    messageList.innerHTML = '';
-    if (!target.sessionId) return appendMessage('tool', `新對話，資料夾：${target.cwd}`);
-    const { data: history, error } = await askBackground({ type: 'server-get', path: `/sessions/${target.sessionId}/messages` });
-    if (error) return appendMessage('error', error);
-    appendMessage('tool', `資料夾：${target.cwd}（只顯示最近的文字訊息）`);
-    history.forEach((message) => appendMessage(message.role, message.text));
-  }
-
-  function escapeHtml(text) {
-    return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
-  }
-
-  function cssSelectorFor(element) {
-    const parts = [];
-    for (let node = element; node && node.nodeType === 1 && parts.length < 6; node = node.parentElement) {
-      if (node.id) {
-        parts.unshift(`#${CSS.escape(node.id)}`);
-        break;
-      }
-      const sameTagSiblings = [...(node.parentElement?.children ?? [])].filter((sibling) => sibling.tagName === node.tagName);
-      const position = sameTagSiblings.length > 1 ? `:nth-of-type(${sameTagSiblings.indexOf(node) + 1})` : '';
-      parts.unshift(node.tagName.toLowerCase() + position);
-    }
-    return parts.join(' > ');
-  }
-
-  function describeElement(element) {
-    const style = getComputedStyle(element);
-    const keyStyles = ['display', 'width', 'height', 'color', 'background-color', 'font-size', 'font-family', 'padding', 'margin', 'border']
-      .map((property) => `${property}: ${style.getPropertyValue(property)}`)
-      .join('; ');
-    return [
-      `page: ${location.href}`,
-      `selector: ${cssSelectorFor(element)}`,
-      `text: ${element.innerText?.trim().slice(0, 500) ?? ''}`,
-      `computed style: ${keyStyles}`,
-      `outerHTML:\n${element.outerHTML.slice(0, 4000)}`,
-    ].join('\n');
+  function elementName(element) {
+    const id = element.id ? `#${element.id}` : '';
+    const firstClass = !id && element.classList[0] ? `.${element.classList[0]}` : '';
+    return element.tagName.toLowerCase() + id + firstClass;
   }
 
   async function captureViewport() {
-    const panelWasVisible = !panel.hidden;
-    panel.hidden = true;
+    const toolbarWasVisible = !toolbar.hidden;
+    toast.hidden = true;
+    toolbar.hidden = true;
     highlight.hidden = true;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const { dataUrl, error } = await askBackground({ type: 'capture-tab' });
-    panel.hidden = !panelWasVisible;
+    toolbar.hidden = !toolbarWasVisible;
     if (error) {
-      appendMessage('error', `截圖失敗：${error}`);
+      showToast({ title: '截圖失敗', detail: error, isError: true });
       return null;
     }
     return dataUrl;
@@ -173,34 +125,28 @@ if (!window.__claudeWebBridge) {
     canvas.width = Math.max(1, rect.width * scale);
     canvas.height = Math.max(1, rect.height * scale);
     canvas.getContext('2d').drawImage(image, rect.left * scale, rect.top * scale, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/png');
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   }
 
-  async function screenshotOf(rect) {
-    const screenshotUrl = await captureViewport();
-    return screenshotUrl && cropScreenshot(screenshotUrl, rect);
-  }
-
-  function setAttachment(label, context, screenshot) {
-    attachment = { context, screenshot };
-    attachmentView.innerHTML = '';
-    if (screenshot) attachmentView.append(Object.assign(document.createElement('img'), { src: screenshot }));
-    attachmentView.append(Object.assign(document.createElement('span'), { textContent: label }));
-    const clear = Object.assign(document.createElement('button'), { textContent: '移除' });
-    clear.onclick = () => {
-      attachment = null;
-      attachmentView.innerHTML = '';
-    };
-    attachmentView.append(clear);
-    textarea.focus();
+  async function copyScreenshot(screenshot) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': screenshot })]);
+      const preview = URL.createObjectURL(screenshot);
+      showToast({ title: '截圖已複製', detail: '到 VS Code 的 Claude 輸入框按 ⌘V 貼上', image: preview });
+      setTimeout(() => URL.revokeObjectURL(preview), 5000);
+    } catch (error) {
+      showToast({ title: '複製失敗', detail: String(error), isError: true });
+    }
   }
 
   const POINTER_BUTTON_EVENTS = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'auxclick', 'contextmenu'];
 
   // Swallow button events at window capture so the page never sees the selecting click:
   // otherwise teleported dropdowns and popovers close on "click outside" before they can be picked.
+  // Clicks on our own toolbar pass through so modes can be switched mid-selection.
   function interceptPage({ onMove, onPointerDown, onPointerUp, onCancel }) {
     const handleButton = (event) => {
+      if (event.composedPath().includes(toolbar)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       if (event.type === 'pointerdown') onPointerDown?.(event);
@@ -222,29 +168,33 @@ if (!window.__claudeWebBridge) {
     POINTER_BUTTON_EVENTS.forEach((type) => window.addEventListener(type, handleButton, true));
     window.addEventListener('pointermove', onMove, true);
     window.addEventListener('keydown', handleKey, true);
+    cancelActiveMode = () => finish(onCancel);
   }
 
   function startElementPicker() {
-    panel.hidden = true;
+    enterMode(pickerButton);
     let hovered = null;
     const endPicking = () => {
       highlight.hidden = true;
-      showPanel();
+      leaveMode();
     };
     interceptPage({
       onMove: (event) => {
-        if (event.target === host) return;
+        if (event.target === host) return (highlight.hidden = true);
         hovered = event.target;
         const rect = hovered.getBoundingClientRect();
         Object.assign(highlight.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+        highlightLabel.textContent = `${elementName(hovered)}  ${Math.round(rect.width)}×${Math.round(rect.height)}`;
+        highlight.classList.toggle('near-top', rect.top < 28);
         highlight.hidden = false;
       },
       onCancel: endPicking,
       onPointerUp: async () => {
         endPicking();
         if (!hovered) return;
-        const screenshot = await screenshotOf(hovered.getBoundingClientRect());
-        setAttachment(`元素：${cssSelectorFor(hovered)}`, describeElement(hovered), screenshot);
+        const rect = hovered.getBoundingClientRect();
+        const viewportScreenshot = await captureViewport();
+        if (viewportScreenshot) await copyScreenshot(await cropScreenshot(viewportScreenshot, rect));
       },
     });
   }
@@ -252,23 +202,26 @@ if (!window.__claudeWebBridge) {
   // Freeze the page into a screenshot first, so popups that close once the page sees a mouse event
   // (window-capture listeners registered before ours still fire) stay in the selected image.
   async function startRegionSelect() {
-    panel.hidden = true;
+    enterMode(regionButton);
     const frozenScreenshot = await captureViewport();
-    if (!frozenScreenshot) return showPanel();
+    if (!frozenScreenshot) return leaveMode();
     const layer = Object.assign(document.createElement('div'), { className: 'region-layer' });
     layer.style.backgroundImage = `url(${frozenScreenshot})`;
     const box = Object.assign(document.createElement('div'), { className: 'region-box' });
+    const boxLabel = Object.assign(document.createElement('span'), { className: 'size-label' });
+    box.append(boxLabel);
     root.append(layer);
     let start = null;
     let rect = null;
     const endSelecting = () => {
       layer.remove();
       box.remove();
-      showPanel();
+      leaveMode();
     };
     interceptPage({
       onPointerDown: (event) => {
         start = { x: event.clientX, y: event.clientY };
+        layer.classList.add('dragging');
         root.append(box);
       },
       onMove: (event) => {
@@ -280,102 +233,38 @@ if (!window.__claudeWebBridge) {
           height: Math.abs(event.clientY - start.y),
         };
         Object.assign(box.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+        boxLabel.textContent = `${Math.round(rect.width)}×${Math.round(rect.height)}`;
       },
       onCancel: endSelecting,
       onPointerUp: async () => {
         endSelecting();
         if (!rect || rect.width < 4 || rect.height < 4) return;
-        const screenshot = await cropScreenshot(frozenScreenshot, rect);
-        const context = `page: ${location.href}\nselected region (viewport px): x=${rect.left}, y=${rect.top}, ${rect.width}×${rect.height}`;
-        setAttachment(`範圍 ${rect.width}×${rect.height}`, context, screenshot);
+        await copyScreenshot(await cropScreenshot(frozenScreenshot, rect));
       },
     });
   }
 
-  function setStreaming(streaming) {
-    sendButton.textContent = streaming ? '停止' : '送出';
-    sessionSelect.disabled = streaming;
+  function toggleToolbar() {
+    cancelActiveMode?.();
+    toolbarPinned = toolbar.hidden;
+    toolbar.hidden = !toolbarPinned;
   }
 
-  function stopStreaming() {
-    chatPort?.disconnect();
-    chatPort = null;
-    setStreaming(false);
-  }
+  pickerButton.onclick = startElementPicker;
+  regionButton.onclick = startRegionSelect;
+  root.querySelector('.close').onclick = () => {
+    cancelActiveMode?.();
+    toolbarPinned = false;
+    toolbar.hidden = true;
+  };
 
-  function send() {
-    const text = textarea.value.trim();
-    if (!text || !currentTarget) return;
-    appendMessage('user', attachment ? `${text}\n📎 ${attachmentView.querySelector('span').textContent}` : text);
-    const payload = { ...currentTarget, text, context: attachment?.context, screenshot: attachment?.screenshot };
-    textarea.value = '';
-    attachment = null;
-    attachmentView.innerHTML = '';
-
-    let replyElement = null;
-    chatPort = chrome.runtime.connect({ name: 'chat' });
-    setStreaming(true);
-    chatPort.onMessage.addListener((event) => {
-      if (event.type === 'text') {
-        replyElement ??= appendMessage('assistant', '');
-        replyElement.textContent += event.text;
-        messageList.scrollTop = messageList.scrollHeight;
-      } else if (event.type === 'tool') {
-        appendMessage('tool', `⚙ ${event.text}`);
-        replyElement = null;
-      } else if (event.type === 'done') {
-        if (event.isError) appendMessage('error', event.result ?? '執行失敗');
-        if (!currentTarget.sessionId) {
-          currentTarget = { sessionId: event.sessionId, cwd: currentTarget.cwd };
-          chrome.storage.local.set({ target: currentTarget });
-        }
-      } else if (event.type === 'error') {
-        appendMessage('error', event.text);
-      } else if (event.type === 'closed') {
-        stopStreaming();
-      }
-    });
-    chatPort.postMessage(payload);
-  }
-
-  sendButton.onclick = () => (chatPort ? stopStreaming() : send());
-  textarea.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-      event.preventDefault();
-      if (!chatPort) send();
-    }
-  });
-  sessionSelect.onchange = () => selectTarget(JSON.parse(sessionSelect.value));
-  $('.refresh').onclick = loadSessions;
-  $('.close').onclick = () => (panel.hidden = true);
-  $('.pick').onclick = startElementPicker;
-  $('.region').onclick = startRegionSelect;
-
-  function showPanel() {
-    panel.hidden = false;
-    if (!sessionSelect.options.length) loadSessions();
-  }
-
-  function refreshFromOtherClients() {
-    if (panel.hidden || chatPort) return;
-    loadSessions();
-  }
-  window.addEventListener('focus', refreshFromOtherClients);
-  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refreshFromOtherClients());
-
-  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'keydown', 'keyup', 'keypress'].forEach((type) =>
+  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((type) =>
     host.addEventListener(type, (event) => event.stopPropagation()),
   );
 
   chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'toggle-toolbar') toggleToolbar();
     if (message.type === 'start-picker') startElementPicker();
     if (message.type === 'start-region') startRegionSelect();
-    if (message.type !== 'toggle-panel') return;
-    if (panel.hidden) {
-      showPanel();
-      textarea.focus();
-    } else {
-      panel.hidden = true;
-    }
   });
 }
